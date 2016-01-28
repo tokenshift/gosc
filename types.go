@@ -5,6 +5,30 @@ import (
 	"io"
 )
 
+type TypeTag byte
+const (
+	// Standard argument types.
+	OST_TYPE_INT32        = TypeTag('i')
+	OST_TYPE_FLOAT32      = TypeTag('f')
+	OST_TYPE_STRING       = TypeTag('s')
+	OST_TYPE_BLOB         = TypeTag('b')
+
+	// "Extended" argument types (not all clients support any/all of these).
+	OST_ETYPE_INT64       = TypeTag('h')
+	OST_ETYPE_TIMETAG     = TypeTag('t')
+	OST_ETYPE_FLOAT64     = TypeTag('d')
+	OST_ETYPE_STRING_ALT  = TypeTag('S')
+	OST_ETYPE_CHAR        = TypeTag('c')
+	OST_ETYPE_RGBA        = TypeTag('r')
+	OST_ETYPE_MIDI        = TypeTag('m')
+	OST_ETYPE_TRUE        = TypeTag('T')
+	OST_ETYPE_FALSE       = TypeTag('F')
+	OST_ETYPE_NIL         = TypeTag('N')
+	OST_ETYPE_INFINITY    = TypeTag('I')
+	OST_ETYPE_ARRAY_START = TypeTag('[')
+	OST_ETYPE_ARRAY_END   = TypeTag(']')
+)
+
 // Arguments are all OSC types that can be transitted in a message.
 type OSCArg interface {
 	// Writes the argument to an output stream. Returns the number of bytes
@@ -13,11 +37,13 @@ type OSCArg interface {
 	// be turned into a stream of bytes, usually because it was invalid in some
 	// way) or an underlying transmission failure returned by the output Writer.
 	WriteTo(out io.Writer) (int, error)
+	Tag() TypeTag
 }
 
-// OSC-strings are technically a subset of go strings, so a []byte would be
-// more appropriate; string is used purely for convenience, so that consumers
-// of the library don't have to add conversion logic to their string literals.
+// OSC-strings are more restrictive than go strings, so a []byte would be more
+// appropriate; string is used purely for convenience, so that consumers of the
+// library don't have to add conversion logic to their string literals. All
+// strings are validated before transmission.
 type OSCString string
 type OSCAddressPattern OSCString
 
