@@ -1,9 +1,26 @@
 package gosc
 
 import (
-	"fmt"
 	"io"
 )
+
+// Arguments are all OSC types that can be transitted in a message.
+type OSCArg interface {
+	// WriteTo writes the argument to an output stream. Returns the number of
+	// bytes written and an error, if the argument could not be written.
+	// This error will either be a serialization error (the argument could not
+	// be turned into a stream of bytes, usually because it was invalid in some
+	// way) or an underlying transmission failure returned by the output Writer.
+	WriteTo(out io.Writer) (int, error)
+
+	// Tag returns the single-byte type tag that identifies the argument type
+	// on the wire.
+	Tag() OSCTypeTag
+
+	// Valid checks its value and ensures that it can be serialized correctly.
+	// Returns nil on success, or an error otherwise.
+	Valid() error
+}
 
 type OSCTypeTag byte
 const (
@@ -28,17 +45,6 @@ const (
 	OST_ETYPE_ARRAY_START = OSCTypeTag('[')
 	OST_ETYPE_ARRAY_END   = OSCTypeTag(']')
 )
-
-// Arguments are all OSC types that can be transitted in a message.
-type OSCArg interface {
-	// Writes the argument to an output stream. Returns the number of bytes
-	// written and an error, if the argument could not be written.
-	// This error will either be a serialization error (the argument could not
-	// be turned into a stream of bytes, usually because it was invalid in some
-	// way) or an underlying transmission failure returned by the output Writer.
-	WriteTo(out io.Writer) (int, error)
-	Tag() OSCTypeTag
-}
 
 // OSC-strings are more restrictive than go strings, so a []byte would be more
 // appropriate; string is used purely for convenience, so that consumers of the
@@ -106,10 +112,6 @@ func (s OSCAddressPattern) Valid() error {
 	return nil
 }
 
-type OSCArgumentError string
-func OSCArgumentErrorf(f string, args...interface{}) OSCArgumentError {
-	return OSCArgumentError(fmt.Sprintf(f, args...))
-}
-func (e OSCArgumentError) Error() string {
-	return string(e)
+func (s OSCAddressPattern) WriteTo(out io.Writer) (int, error) {
+	return OSCString(s).WriteTo(out)
 }
