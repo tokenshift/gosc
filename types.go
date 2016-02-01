@@ -4,6 +4,9 @@ import (
 	"io"
 )
 
+const OSC_BYTE_ALIGNMENT = 4
+const OSC_STRING_BUFFER_SIZE = 1024
+
 // Arguments are all OSC types that can be transitted in a message.
 type OSCArg interface {
 	// WriteTo writes the argument to an output stream. Returns the number of
@@ -25,25 +28,25 @@ type OSCArg interface {
 type OSCTypeTag byte
 const (
 	// Standard argument types.
-	OST_TYPE_INT32        = OSCTypeTag('i')
-	OST_TYPE_FLOAT32      = OSCTypeTag('f')
-	OST_TYPE_STRING       = OSCTypeTag('s')
-	OST_TYPE_BLOB         = OSCTypeTag('b')
+	OSC_TYPE_INT32        = OSCTypeTag('i')
+	OSC_TYPE_FLOAT32      = OSCTypeTag('f')
+	OSC_TYPE_STRING       = OSCTypeTag('s')
+	OSC_TYPE_BLOB         = OSCTypeTag('b')
 
 	// "Extended" argument types (not all clients support any/all of these).
-	OST_ETYPE_INT64       = OSCTypeTag('h')
-	OST_ETYPE_TIMETAG     = OSCTypeTag('t')
-	OST_ETYPE_FLOAT64     = OSCTypeTag('d')
-	OST_ETYPE_STRING_ALT  = OSCTypeTag('S')
-	OST_ETYPE_CHAR        = OSCTypeTag('c')
-	OST_ETYPE_RGBA        = OSCTypeTag('r')
-	OST_ETYPE_MIDI        = OSCTypeTag('m')
-	OST_ETYPE_TRUE        = OSCTypeTag('T')
-	OST_ETYPE_FALSE       = OSCTypeTag('F')
-	OST_ETYPE_NIL         = OSCTypeTag('N')
-	OST_ETYPE_INFINITY    = OSCTypeTag('I')
-	OST_ETYPE_ARRAY_START = OSCTypeTag('[')
-	OST_ETYPE_ARRAY_END   = OSCTypeTag(']')
+	OSC_ETYPE_INT64       = OSCTypeTag('h')
+	OSC_ETYPE_TIMETAG     = OSCTypeTag('t')
+	OSC_ETYPE_FLOAT64     = OSCTypeTag('d')
+	OSC_ETYPE_STRING_ALT  = OSCTypeTag('S')
+	OSC_ETYPE_CHAR        = OSCTypeTag('c')
+	OSC_ETYPE_RGBA        = OSCTypeTag('r')
+	OSC_ETYPE_MIDI        = OSCTypeTag('m')
+	OSC_ETYPE_TRUE        = OSCTypeTag('T')
+	OSC_ETYPE_FALSE       = OSCTypeTag('F')
+	OSC_ETYPE_NIL         = OSCTypeTag('N')
+	OSC_ETYPE_INFINITY    = OSCTypeTag('I')
+	OSC_ETYPE_ARRAY_START = OSCTypeTag('[')
+	OSC_ETYPE_ARRAY_END   = OSCTypeTag(']')
 )
 
 // OSC-strings are more restrictive than go strings, so a []byte would be more
@@ -52,8 +55,45 @@ const (
 // strings are validated before transmission.
 type OSCString string
 
+func ReadOSCString(in io.Reader) (OSCString, error) {
+	var s []byte
+
+	var buf [1]byte
+	var n int
+	var err error
+
+	for n, err = in.Read(buf[:]); err == nil && n > 0 && buf[0] != 0; n, err = in.Read(buf[:]) {
+		s = append(s, buf[0])
+	}
+
+	if err != nil && err != io.EOF {
+		return "", OSCReadErrorf("failed to read OSC-string from input: %v", err)
+	}
+
+	if n == 0 {
+		return "", OSCReadErrorf("did not reach null terminator in OSC-string")
+	}
+
+	// Then discard null padding (OSC-strings are supposed to be padded to four
+	// byte increments).
+
+	for i := (4 - (len(s) + 1)) % 4; i > 0; i-- {
+		n, err = in.Read(buf[:])
+		if err != nil {
+			return "", OSCReadErrorf("failed to read OSC-string from input: %v", err)
+		}
+		if n == 0 || buf[0] != 0 {
+			//fmt.Println("HERE:", s, n, 
+			return "", OSCReadErrorf("OSC-string was not padded properly")
+		}
+	}
+
+	os := OSCString(s)
+	return os, os.Valid()
+}
+
 func (s OSCString) Tag() OSCTypeTag {
-	return OST_TYPE_STRING
+	return OSC_TYPE_STRING
 }
 
 func (s OSCString) Valid() error {

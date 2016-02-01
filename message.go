@@ -2,8 +2,12 @@ package gosc
 
 import (
 	"io"
+	"strings"
 )
 
+// Writes an OSC message to the output stream. Returns an error if any of the
+// arguments were invalid, or if any transmission error occurred, and returns
+// the total number of bytes sent in either case.
 func WriteMessage(out io.Writer, address OSCAddressPattern, args...OSCArg) (int, error) {
 	if err := address.Valid(); err != nil {
 		return 0, err
@@ -44,4 +48,49 @@ func WriteMessage(out io.Writer, address OSCAddressPattern, args...OSCArg) (int,
 	}
 
 	return total, nil
+}
+
+// Reads an OSC message from an input stream, returning the address and
+// arguments, or an error if the message could not be read successfully.
+func ReadMessage(in io.Reader) (OSCAddressPattern, []OSCArg, error) {
+	address, err := ReadOSCString(in)
+	if err != nil {
+		return "", nil, err
+	}
+
+	oaddress := OSCAddressPattern(address)
+	if err = oaddress.Valid(); err != nil {
+		return "", nil, err
+	}
+
+	tagString, err := ReadOSCString(in)
+	if err != nil {
+		return oaddress, nil, err
+	}
+	if !strings.HasPrefix(string(tagString), ",") {
+		return oaddress, nil, OSCReadErrorf("tag string (%s) must start with a comma", tagString)
+	}
+	if err = tagString.Valid(); err != nil {
+		return oaddress, nil, err
+	}
+
+	args := make([]OSCArg, 0, len(tagString) - 1)
+	for _, tag := range tagString[1:] {
+		var arg OSCArg
+
+		switch OSCTypeTag(tag) {
+		case OSC_TYPE_STRING:
+			arg, err = ReadOSCString(in)
+		default:
+			return oaddress, nil, OSCReadErrorf("unsupported type tag: %s", tag)
+		}
+
+		if err != nil {
+			return oaddress, args, err
+		}
+
+		args = append(args, arg)
+	}
+
+	return oaddress, args, nil
 }

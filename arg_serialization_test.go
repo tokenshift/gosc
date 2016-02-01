@@ -1,7 +1,7 @@
 package gosc
 
 /**
- * Tests for serialization of individual OSC arguments.
+ * Tests for serialization (writing) of individual OSC arguments.
  */
 
 import (
@@ -9,7 +9,7 @@ import (
 	. "testing"
 )
 
-func TestOSTString(t *T) {
+func TestWriteOSCString(t *T) {
 	var out bytes.Buffer
 	var s OSCString
 	var err error
@@ -18,7 +18,7 @@ func TestOSTString(t *T) {
 
 	s = OSCString("testing")
 	expectNil(t, s.Valid())
-	expectSame(t, OST_TYPE_STRING, s.Tag())
+	expectSame(t, OSC_TYPE_STRING, s.Tag())
 	n, err = s.WriteTo(&out)
 	expectNil(t, err)
 	expectSame(t, 8, n)
