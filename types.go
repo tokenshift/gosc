@@ -62,28 +62,31 @@ func ReadOSCString(in io.Reader) (OSCString, error) {
 	var n int
 	var err error
 
-	for n, err = in.Read(buf[:]); err == nil && n > 0 && buf[0] != 0; n, err = in.Read(buf[:]) {
+	for n, err = in.Read(buf[:]); err == nil; n, err = in.Read(buf[:]) {
+		if n > 0 && buf[0] == 0 {
+			break
+		}
+
 		s = append(s, buf[0])
 	}
 
 	if err != nil && err != io.EOF {
-		return "", OSCReadErrorf("failed to read OSC-string from input: %v", err)
+		return "", OSCReadErrorf("failed to read OSC-string: %v", err)
 	}
 
 	if n == 0 {
-		return "", OSCReadErrorf("did not reach null terminator in OSC-string")
+		return "", OSCReadErrorf("reached end of input before null terminator")
 	}
 
 	// Then discard null padding (OSC-strings are supposed to be padded to four
 	// byte increments).
 
-	for i := (4 - (len(s) + 1)) % 4; i > 0; i-- {
+	for i := len(s) + 1; i % 4 != 0; i++ {
 		n, err = in.Read(buf[:])
-		if err != nil {
+		if err != nil && err != io.EOF {
 			return "", OSCReadErrorf("failed to read OSC-string from input: %v", err)
 		}
 		if n == 0 || buf[0] != 0 {
-			//fmt.Println("HERE:", s, n, 
 			return "", OSCReadErrorf("OSC-string was not padded properly")
 		}
 	}

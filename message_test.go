@@ -53,6 +53,17 @@ func TestWriteMessageMultipleStrings(t *T) {
 		out.Bytes())
 }
 
+func TestReadMessageEmpty(t *T) {
+	input := bytes.NewReader([]byte{
+		47,115,111,109,101,116,104,105,110,103,0,0, // "/something" (address)
+		44,0,0,0})                  // "," (empty type string)
+
+	address, args, err := ReadMessage(input)
+	expectNil(t, err)
+	expectSame(t, OSCAddressPattern("/something"), address)
+	expectSame(t, 0, len(args))
+}
+
 func TestReadMessageMultipleStrings(t *T) {
 	input := bytes.NewReader([]byte{
 		47,115,111,109,101,116,104,105,110,103,0,0, // "/something" (address)
