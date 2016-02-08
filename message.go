@@ -79,10 +79,16 @@ func ReadMessage(in io.Reader) (OSCAddressPattern, []OSCArg, error) {
 		var arg OSCArg
 
 		switch OSCTypeTag(tag) {
+		case OSC_TYPE_INT32:
+			arg, err = ReadOSCInt32(in)
+		case OSC_TYPE_FLOAT32:
+			arg, err = ReadOSCFloat32(in)
 		case OSC_TYPE_STRING:
 			arg, err = ReadOSCString(in)
+		case OSC_TYPE_BLOB:
+			arg, err = ReadOSCBlob(in)
 		default:
-			return oaddress, nil, OSCReadErrorf("unsupported type tag: %s", tag)
+			return oaddress, nil, OSCReadErrorf("unsupported type tag: '%s'", string(tag))
 		}
 
 		if err != nil {
