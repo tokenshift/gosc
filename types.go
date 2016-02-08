@@ -1,6 +1,7 @@
 package gosc
 
 import (
+	"encoding/binary"
 	"io"
 )
 
@@ -49,6 +50,23 @@ const (
 	OSC_ETYPE_ARRAY_END   = OSCTypeTag(']')
 )
 
+// 32-bit big-endian two's complement integer.
+type OSCInt32 int32
+
+func (i OSCInt32) WriteTo(out io.Writer) (int, error) {
+	return 4, binary.Write(out, binary.BigEndian, int32(i))
+}
+
+// 32-bit big-endian IEEE 754 floating point number.
+type OSCFloat32 float32
+
+func (f OSCFloat32) WriteTo(out io.Writer) (int, error) {
+	return 4, binary.Write(out, binary.BigEndian, float32(f))
+}
+
+// A sequence of non-null ASCII characters followed by a null, followed by 0-3
+// additional null characters to make the total number of bits a multiple of 32.
+//
 // OSC-strings are more restrictive than go strings, so a []byte would be more
 // appropriate; string is used purely for convenience, so that consumers of the
 // library don't have to add conversion logic to their string literals. All
@@ -124,6 +142,26 @@ func (s OSCString) WriteTo(out io.Writer) (int, error) {
 	}
 
 	return out.Write(data)
+}
+
+// An int32 size count, followed by that many 8-bit bytes of arbitrary binary
+// data, followed by 0-3 additional zero bytes to make the total number of bits
+// a multiple of 32.
+type OSCBlob []byte
+
+func (b OSCBlob) WriteTo(out io.Writer) (int, error) {
+	if n, err := OSCInt32(len(b)).WriteTo(out); err != nil {
+		return n, err
+	}
+
+	n, err := out.Write([]byte(b))
+
+	for n % 4 != 0 {
+		out.Write([]byte{0})
+		n++
+	}
+
+	return n + 4, err
 }
 
 // An OSC address pattern is an OSC-string with some additional restrictions.
