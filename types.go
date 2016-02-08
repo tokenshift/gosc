@@ -62,6 +62,14 @@ func ReadOSCInt32(in io.Reader) (OSCInt32, error) {
 	}
 }
 
+func (i OSCInt32) Tag() OSCTypeTag {
+	return OSC_TYPE_INT32
+}
+
+func (i OSCInt32) Valid() error {
+	return nil
+}
+
 func (i OSCInt32) WriteTo(out io.Writer) (int, error) {
 	return 4, binary.Write(out, binary.BigEndian, int32(i))
 }
@@ -76,6 +84,14 @@ func ReadOSCFloat32(in io.Reader) (OSCFloat32, error) {
 	} else {
 		return out, nil
 	}
+}
+
+func (f OSCFloat32) Tag() OSCTypeTag {
+	return OSC_TYPE_FLOAT32
+}
+
+func (f OSCFloat32) Valid() error {
+	return nil
 }
 
 func (f OSCFloat32) WriteTo(out io.Writer) (int, error) {
@@ -186,6 +202,14 @@ func ReadOSCBlob(in io.Reader) (OSCBlob, error) {
 	}
 
 	return OSCBlob(buffer), nil
+}
+
+func (s OSCBlob) Tag() OSCTypeTag {
+	return OSC_TYPE_BLOB
+}
+
+func (s OSCBlob) Valid() error {
+	return nil
 }
 
 func (b OSCBlob) WriteTo(out io.Writer) (int, error) {
