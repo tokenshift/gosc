@@ -53,12 +53,30 @@ const (
 // 32-bit big-endian two's complement integer.
 type OSCInt32 int32
 
+func ReadOSCInt32(in io.Reader) (OSCInt32, error) {
+	var out OSCInt32
+	if err := binary.Read(in, binary.BigEndian, &out); err != nil {
+		return 0, OSCReadErrorf("failed to read int32: %s", err)
+	} else {
+		return out, nil
+	}
+}
+
 func (i OSCInt32) WriteTo(out io.Writer) (int, error) {
 	return 4, binary.Write(out, binary.BigEndian, int32(i))
 }
 
 // 32-bit big-endian IEEE 754 floating point number.
 type OSCFloat32 float32
+
+func ReadOSCFloat32(in io.Reader) (OSCFloat32, error) {
+	var out OSCFloat32
+	if err := binary.Read(in, binary.BigEndian, &out); err != nil {
+		return 0, OSCReadErrorf("failed to read float32: %s", err)
+	} else {
+		return out, nil
+	}
+}
 
 func (f OSCFloat32) WriteTo(out io.Writer) (int, error) {
 	return 4, binary.Write(out, binary.BigEndian, float32(f))
@@ -148,6 +166,27 @@ func (s OSCString) WriteTo(out io.Writer) (int, error) {
 // data, followed by 0-3 additional zero bytes to make the total number of bits
 // a multiple of 32.
 type OSCBlob []byte
+
+func ReadOSCBlob(in io.Reader) (OSCBlob, error) {
+	size, err := ReadOSCInt32(in)
+
+	if err != nil {
+		return nil, OSCReadErrorf("failed to read blob size: %s", err)
+	}
+	
+	buffer := make([]byte, size)
+	n, err := in.Read(buffer)
+
+	if err != nil {
+		return nil, OSCReadErrorf("failed to read blob: %s", err)
+	}
+
+	if n != int(size) {
+		return nil, OSCReadErrorf("failed to read complete blob, got %d bytes out of %d", n, size)
+	}
+
+	return OSCBlob(buffer), nil
+}
 
 func (b OSCBlob) WriteTo(out io.Writer) (int, error) {
 	if n, err := OSCInt32(len(b)).WriteTo(out); err != nil {
